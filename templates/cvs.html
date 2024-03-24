@@ -1,0 +1,10 @@
+<form action="{{ url_for("sim")}}"method="post">
+<label for="ah">ah:</label>
+<input type="text" id="ah" name="ah" placeholder="ah">
+<label for="bh">bh:</label>
+<input type="text" id="bh" name="bh" placeholder="bh">
+<button type="submit">Simulate</button>
+<video width="320" height="240" autoplay controls>
+    <source src="http://127.0.0.1:5500/AnimationImages/window_video.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>

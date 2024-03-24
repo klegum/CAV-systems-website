@@ -4,6 +4,7 @@ import pygame, sys
 from statistics import stdev
 from random import randint
 import csv
+import os
 
 reactionTime = 1
 cccDelay = 0.2
@@ -67,8 +68,6 @@ class Car:
                     Car.cars[j] = temp
 
         Car.cars.reverse()
-        for human in Car.cars:
-            print(human.distance_travelled)
         
     def selectCarInFront(self, car_in_front):
         self.next_vehicle = car_in_front
@@ -305,19 +304,19 @@ class TrafficLight():
             if self.state == True:
                 self.state = False # red to green
                 self.isOrange = False
-                print("red to green: " + str(timestep))
+                #print("red to green: " + str(timestep))
                 self.counter += 1
             else:
                 self.state = True # green to orange
                 self.isOrange = True
                 self.lastRed = timestep
-                print("green to orange: " + str(timestep))
+                #print("green to orange: " + str(timestep))
                 self.counter += 1
         timeRed = timestep - self.lastRed
         if (((self.orangeSteps)-(stepsPerSecond-1)) <= timeRed) and (timeRed <= ((self.orangeSteps)-(stepsPerSecond-1))) and (self.state == True):
             self.state = True # orange to red
             self.isOrange = False
-            print("orange to red: " + str(timestep))
+            #print("orange to red: " + str(timestep))
         if self.getColour() == "o":
             for vehicle in Car.cars:
                 posDiff = (self.getPosition() - vehicle.getPosition())
@@ -387,10 +386,10 @@ def linkCars():
         Car.cars[i + 1].selectCarInFront(Car.cars[i])
     Car.cars[0].selectCarInFront(Car.cars[-1])
     for car in Car.cars:
-        print(car.next_vehicle)
-    '''for i in range(len(Car.cars) - 1):
-        if Car.cars[i].type == "autonomous":
-            Car.cars[i].cascade()'''
+        #print(car.next_vehicle)
+        '''for i in range(len(Car.cars) - 1):
+            if Car.cars[i].type == "autonomous":
+                Car.cars[i].cascade()'''
 
 def allCascade(absPos):
     for i in absPos:
@@ -405,7 +404,30 @@ def allStates(timestep, absPos):
         if i.type == "traffic_light":
             i.setState(timestep)
 
-def main():
+def main(inputah=ah, inputbh=bh):
+
+    nAutonomous = 5
+    n = 30
+    cascadeLen = round(n / nAutonomous)
+    bh = inputbh
+    ah = inputah
+
+    r = lambda: randint(math.ceil(-(track_length/n/2.5)), math.floor(track_length/n/2.5))
+    p = lambda a: (track_length/n) * a + r()
+
+
+    for x in range(1, n+1):
+        if x % cascadeLen == 0:
+            Car.cars.append(Autonomous(p(x)))
+        else:
+            Car.cars.append(Human(p(x)))
+
+    Car.sort_cars()
+    linkCars()
+    absolutePositions = updatePositions()
+    setId()
+    allCascade(absolutePositions)
+
     counter = 0
     headwayData = []
     tempHeadway = []
@@ -424,12 +446,8 @@ def main():
     stdevs = []
     finished = False
 
-    fig, ax = plt.subplots(
-        ncols=1, nrows=3, figsize=(10, 5.4), layout="constrained", sharex=True
-    )
 
-
-    while True:
+    for times in range(50):
         for x in range(stepsPerSecond):
             counter += 1
 
@@ -485,7 +503,7 @@ def main():
             stdevs.append(stdev(tempHeadway + tempHeadwayA))
 
             if stdev(tempHeadwayA + tempHeadway) < StabilityThreshold:
-                print (f"ROBUST STABILITY ACHIEVED AT {(counter*stepsPerSecond) + x} timesteps")
+                #print (f"ROBUST STABILITY ACHIEVED AT {(counter*stepsPerSecond) + x} timesteps")
                 finished = False # just for testing :)
 
             tempHeadwayA = []
@@ -496,83 +514,14 @@ def main():
             tempPosition = []
             tempHeadway = []
             tempTrafficData = []
-        usr = input()
-        if usr == "show" or finished:
-            ax[0].plot(range(counter), velocityData)
-            ax[0].plot(range(counter), velocityA, linestyle="dashed")
-            ax[0].set_ylabel("Velocity")
-            ax[1].plot(range(counter), accelData)
-            ax[1].plot(range(counter), accelA, linestyle="dashed")
-            ax[1].set_ylabel("Acceleration")
-            ax[2].plot(range(counter), headwayData)
-            ax[2].plot(range(counter), headwayA, linestyle="dashed")
-            ax[2].plot(range(counter), stdevs, linewidth=3)
-            ax[2].set_ylabel("Headway")
-            plt.xlabel("Timesteps")
-            plt.show()
-            animate()
-        elif usr == "end":
-            animate()
-        elif usr == "data":
-            allVelocities = [
-                vsHuman + vsAuto for vsHuman, vsAuto in zip(velocityData, velocityA)
-            ]
-            velocityHeaders = [
-                f"Velocity{x+1}" for x in range(len(velocityData[0]))
-            ] + [f"VelocityAV{x+1}" for x in range(len(velocityA[0]))]
-            allAccels = [asHuman + asAuto for asHuman, asAuto in zip(accelData, accelA)]
-            accelHeaders = [f"Accel{x+1}" for x in range(len(velocityData[0]))] + [
-                f"AccelAV{x+1}" for x in range(len(velocityA[0]))
-            ]
-            allHeadways = [
-                hsHuman + hsAuto for hsHuman, hsAuto in zip(headwayData, headwayA)
-            ]
-            headwayHeaders = [f"Headway{x+1}" for x in range(len(headwayData[0]))] + [
-                f"HeadwayAV{x+1}" for x in range(len(velocityA[0]))
-            ]
 
-            with open("CAV_data.csv", "w", newline="") as cavData:
-                dataWriter = csv.writer(cavData)
-
-                headers = (
-                    ["Time"]
-                    + velocityHeaders
-                    + accelHeaders
-                    + headwayHeaders
-                    + ["StdDV(Headway)"]
-                )
-                dataWriter.writerow(headers)
-
-                for x in range(len(velocityData)):
-                    row = (
-                        [x / stepsPerSecond]
-                        + allVelocities[x]
-                        + allAccels[x]
-                        + allHeadways[x]
-                        + [stdevs[x]]
-                    )
-                    dataWriter.writerow(row)
-
-        print([str(x) for x in absolutePositions])
-
+    animate()
+        
 
 #INITIALISATION
 
 
-nAutonomous = 5
-n = 40
-cascadeLen = round(n / nAutonomous)
-bh = 0.6
 
-r = lambda: randint(math.ceil(-(track_length/n/2.5)), math.floor(track_length/n/2.5))
-p = lambda a: (track_length/n) * a + r()
-
-
-for x in range(1, n+1):
-    if x % cascadeLen == 0:
-        Car.cars.append(Autonomous(p(x)))
-    else:
-        Car.cars.append(Human(p(x)))
 
 obstacles = []
 
@@ -582,12 +531,8 @@ for obstacle in obstacles:
     if obstacle.type=='traffic_light':
         trafficLightPos.append(obstacle.getPosition())
 
-Car.sort_cars()
-linkCars()
-absolutePositions = updatePositions()
-setId()
-allCascade(absolutePositions)
-print(absolutePositions)
+
+#print(absolutePositions)
 
 def animate(speed=speedOfAnimation):
     pygame.init()
@@ -696,7 +641,5 @@ def animate(speed=speedOfAnimation):
         filename = "AnimationImages/screen_%04d.png" % ( frame_count )
         pygame.image.save(screen, filename)
 
-    exit()
+    os.system(r"ffmpeg -y -r 60 -f image2 -s 720x720 -i AnimationImages/screen_%04d.png -vcodec libx264 -crf 25  AnimationImages/window_video.mp4")
 
-
-main()
